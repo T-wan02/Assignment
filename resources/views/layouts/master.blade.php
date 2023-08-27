@@ -28,7 +28,6 @@
     <script>
         // Check if token exists in localStorage
         const accessToken = JSON.parse(localStorage.getItem('access_token'));
-        console.log(accessToken);
 
         if (!accessToken) {
             window.location.href = '/login';

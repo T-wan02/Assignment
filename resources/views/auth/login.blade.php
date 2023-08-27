@@ -24,6 +24,9 @@
 
 @section('script')
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    {{-- Loader btn --}}
+    <script src="{{ asset('/asset/js/loaderBtn.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('loginForm');
@@ -39,14 +42,10 @@
                 inputs.forEach(input => {
                     input.disabled = true;
                 });
+
                 // Load and disabled the button
                 const submitBtn = loginForm.querySelector('button[type=submit]');
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = `
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                `;
+                loadBtn(submitBtn);
 
                 try {
                     const response = await fetch('/api/login', {
@@ -72,11 +71,10 @@
                 }
 
                 // Remove disabled
+                loadBtn(submitBtn, '', 'Login', false);
                 inputs.forEach(input => {
                     input.disabled = false;
                 });
-                submitBtn.innerHTML = 'Login';
-                submitBtn.disabled = false;
             });
         });
     </script>

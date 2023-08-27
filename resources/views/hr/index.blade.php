@@ -111,13 +111,29 @@
             </div>
         </div>
     </div>
+
+    {{-- Toast container --}}
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer">
+    </div>
 @endsection
 
 @section('script')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.5.2/dist/js/bootstrap.bundle.min.js"></script>
 
+    {{-- Loader btn --}}
+    <script src="{{ asset('/asset/js/loaderBtn.js') }}"></script>
+    {{-- Toast js --}}
+    <script src="{{ asset('/asset/js/toast.js') }}"></script>
+
     <script>
+        const toastContainer = document.getElementById('toastContainer');
+
+        const headers = {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'multipart/form-data'
+        };
+
         function handleDelete(index) {
             const deleteButton = document.getElementById(`delBtn-${index}`);
             const row = deleteButton.closest('tr');
@@ -127,10 +143,13 @@
             const confirmDelete = confirm('Are you sure you want to delete this employee?');
 
             if (confirmDelete) {
-                axios.delete(`/api/employees/${employeeId}`).then(({
+                axios.delete(`/api/employees/${employeeId}`, {
+                    headers
+                }).then(({
                     data
                 }) => {
                     if (data.status === 'success') {
+                        showToast(toastContainer, data.message, 'red');
                         row.remove();
                     } else {
                         console.log(data.message);
@@ -148,10 +167,11 @@
             const editModal = document.getElementById('editModal');
             const editEmployeeForm = editModal.querySelector('#editEmployeeForm');
 
-            axios.get(`/api/employees/edit/${employeeId}`).then(({
+            axios.get(`/api/employees/edit/${employeeId}`, {
+                headers
+            }).then(({
                 data
             }) => {
-                console.log('success');
                 if (data.status === 'success') {
                     const employee = data.data;
 
@@ -184,43 +204,48 @@
                         const employeeId = editEmployeeForm.dataset.id;
 
                         // Get the formData
-                        const updatedEmployee = new FormData(editEmployeeForm);
-                        console.log(updatedEmployee);
+                        const updatedEmployee = new FormData(e.target);
 
                         // Send API request to update employee data
-                        axios.put(`/api/employees/${employeeId}`, updatedEmployee).then(({
-                            data
-                        }) => {
-                            if (data.status === 'success') {
-                                console.log('yes');
-                                const employees = data.data;
+                        axios.post(`/api/employees/${employeeId}?_method=PUT`,
+                                updatedEmployee, {
+                                    headers
+                                })
+                            .then(
+                                ({
+                                    data
+                                }) => {
+                                    if (data.status === 'success') {
+                                        const employees = data.data;
 
-                                indexNumber = 1;
+                                        showToast(toastContainer, 'Updated successfully');
 
-                                employeeList.innerHTML = ``;
-                                if (employees.length > 0) {
-                                    employees.forEach((employee, index) => {
-                                        employeeList.innerHTML += `
-                                   <tr>
-                                        <td id="employeeName-${indexNumber}">${employee.name}</td>
-                                        <td id="employeeEmail-${indexNumber}">${employee.email}</td>
-                                        <td id="employeePhone-${indexNumber}">${employee.phone_number}</td>
-                                        <td id="employeeJobTitle-${indexNumber}">${employee.job_title}</td>
-                                        <td>
-                                             <button class="btn btn-sm btn-dark mb-1" id="editBtn-${indexNumber}" data-bs-toggle="modal" data-bs-target="#editModal" data-id="${employee.id}" onClick="handleEdit(${indexNumber})">Edit</button>
-                                             <button class="btn btn-sm btn-danger mb-1" id="delBtn-${indexNumber}" data-id="${employee.id}" onClick="handleDelete(${indexNumber})">Delete</button>
-                                        </td>
-                                   </tr>
-                              `;
-                                        indexNumber++;
-                                    });
-                                }
-                            } else {
-                                console.log(data.message);
-                            }
-                        }).catch(error => {
-                            console.error('Error updating employee:', error);
-                        });
+                                        indexNumber = 1;
+
+                                        employeeList.innerHTML = ``;
+                                        if (employees.length > 0) {
+                                            employees.forEach((employee, index) => {
+                                                employeeList.innerHTML += `
+                                                    <tr>
+                                                            <td id="employeeName-${indexNumber}">${employee.name}</td>
+                                                            <td id="employeeEmail-${indexNumber}">${employee.email}</td>
+                                                            <td id="employeePhone-${indexNumber}">${employee.phone_number}</td>
+                                                            <td id="employeeJobTitle-${indexNumber}">${employee.job_title}</td>
+                                                            <td>
+                                                                <button class="btn btn-sm btn-dark mb-1" id="editBtn-${indexNumber}" data-bs-toggle="modal" data-bs-target="#editModal" data-id="${employee.id}" onClick="handleEdit(${indexNumber})">Edit</button>
+                                                                <button class="btn btn-sm btn-danger mb-1" id="delBtn-${indexNumber}" data-id="${employee.id}" onClick="handleDelete(${indexNumber})">Delete</button>
+                                                            </td>
+                                                    </tr>
+                                                `;
+                                                indexNumber++;
+                                            });
+                                        }
+                                    } else {
+                                        showToast(toastContainer, data.message, 'error');
+                                    }
+                                }).catch(error => {
+                                showToast(toastContainer, data.message, 'error');
+                            });
                     });
                 }
             }).catch(error => {
@@ -233,15 +258,11 @@
 
             let indexNumber = 1;
 
-            const headers = {
-                'Authorization': `Bearer ${accessToken}`
-            };
             axios.get('{{ route('employees.index') }}', {
                 headers
             }).then(({
                 data
             }) => {
-                console.log(data);
                 if (data.status === 'success') {
                     const employees = data.data;
 
@@ -266,23 +287,22 @@
                 }
             });
 
-            //  add employee form submit
+            // Add employee form submit
             const addEmployeeForm = document.getElementById('addEmployeeForm');
-            addEmployeeForm.addEventListener('submit', async (e) => {
+            addEmployeeForm.addEventListener('submit', (e) => {
                 e.preventDefault();
 
                 // Get the formData
                 const formData = new FormData(addEmployeeForm);
+                console.log(formData.get('email'));
 
-                try {
-                    const response = await fetch('{{ route('employees.store') }}', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
-
+                axios.post('{{ route('employees.store') }}', formData, {
+                    headers
+                }).then(({
+                    data
+                }) => {
                     if (data.status === 'success') {
+                        showToast(toastContainer, data.message);
                         const employee = data.data;
                         employeeList.innerHTML += `
                               <tr>
@@ -298,16 +318,20 @@
                          `;
                         indexNumber++;
                     }
-                } catch (error) {
+                }).catch(errors => {
                     // Handle error
-                    console.log(error);
-                };
+                    showToast(toastContainer, errors.response.data.message, 'red');
+                });
+                addEmployeeForm.reset();
             });
 
             // Logout
             const logout = document.getElementById('logout');
             logout.addEventListener('click', (e) => {
                 const accessToken = JSON.parse(localStorage.getItem('access_token'));
+
+                // Import it from loaderBtn.js
+                loadBtn(logout, 'text-light'); // Load btn
 
                 const headers = {
                     'Authorization': `Bearer ${accessToken}`,
@@ -320,7 +344,10 @@
                     data
                 }) => {
                     if (data.status === 'success') {
-                        console.log(data.message);
+                        localStorage.removeItem('access_token');
+                        window.location.href = '/login';
+
+                        loadBtn(logout, '', 'Logout', false); // Unload the btn
                     }
                 });
             });

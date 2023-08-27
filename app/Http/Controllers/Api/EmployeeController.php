@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
@@ -34,6 +35,28 @@ class EmployeeController extends Controller
      */
     public function store(Request $request)
     {
+        // Validate
+        $v = Validator::make($request->all(), [
+            'email' => 'required|unique',
+            'name' => 'required',
+            'phone_number' => 'required'
+        ]);
+        if (!$v) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $v->errors()
+            ]);
+        }
+
+        $existedEmployee = Employee::where('email', $request->email)->first();
+        if ($existedEmployee) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'There is already account with same email.',
+                'employee' => $request->email
+            ], 409);
+        }
+
         $employee = Employee::create([
             'name' => $request->name,
             'email' => $request->email,
@@ -81,19 +104,20 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $employee = Employee::where('id', $id)->first();
+        $employee = Employee::find($id);
         if (!$employee) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Employee not found',
+                'data' => $id
             ]);
         }
 
         $employee->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone_number' => $request->phone_number,
-            'job_title' => $request->job_title,
+            'name' => $request->input('name'),
+            'email' => $request->input('email'),
+            'phone_number' => $request->input('phone_number'),
+            'job_title' => $request->input('job_title')
         ]);
 
         $allEmployees = Employee::all();

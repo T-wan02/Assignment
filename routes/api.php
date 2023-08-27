@@ -22,7 +22,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
-Route::post('/logout', [AuthController::class, 'logout']);
 
-Route::apiResource('/employees', EmployeeController::class);
-Route::get('/employees/edit/{Id}', [EmployeeController::class, 'edit']);
+Route::middleware('auth:api')->group(function () {
+    Route::apiResource('/employees', EmployeeController::class);
+    Route::get('/employees/edit/{id}', [EmployeeController::class, 'edit']);
+
+    // Logout
+    Route::post('/logout', [AuthController::class, 'logout']);
+});

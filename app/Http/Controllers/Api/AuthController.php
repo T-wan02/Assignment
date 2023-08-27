@@ -13,12 +13,24 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required',
+            'password' => 'required'
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => $validator->errors(),
+                'message' => 'Please fill below fields'
+            ]);
+        }
+
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
 
-            $accessToken = $user->createToken('API Token')->accessToken;
+            $accessToken = $user->createToken('Auth Token')->accessToken;
 
             return response()->json([
                 'status' => 'success',
@@ -28,7 +40,7 @@ class AuthController extends Controller
         } else {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Invalid credentials',
+                'message' => "Email and password don't match",
             ], 401);
         }
     }
@@ -39,21 +51,14 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email',
-            'password' => 'required',
+            'password' => 'required|min:6',
+            'confirm_password' => 'required|same:password|min:6'
         ]);
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
                 'errors' => $validator->errors(),
                 'message' => 'Please fill below fields'
-            ]);
-        }
-
-        // Validate same password
-        if ($request->password !== $request->confirm_password) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Please fill same password'
             ]);
         }
 
@@ -68,21 +73,24 @@ class AuthController extends Controller
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
-            'password' => $request->password
+            'password' => bcrypt($request->password)
         ]);
 
-        $token = $user->createToken('API Token')->accessToken;
+        $token = $user->createToken('Auth Token')->accessToken;
 
         return response()->json([
             'status' => 'success',
             'message' => 'Registered successfully',
+            'data' => $user,
             'token' => $token
         ], 201);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->tokens->each(function ($token, $key) {
+        $user = Auth::user();
+
+        $user->tokens->each(function ($token, $key) {
             $token->delete();
         });
 
